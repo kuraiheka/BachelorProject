@@ -151,6 +151,18 @@ class ManagedServo {
 
       return _positionIs;
     }
+
+    // Adjust servo down
+    void adjustServoDown(){
+      _servo.writeMicroseconds(_config.ServoValueDown);
+      PrintDebug("Motor %i: adjusting down", _config.ServoPin);
+    }
+    // Adjusts sevo up
+    void adjustServoUp(){
+      _servo.writeMicroseconds(_config.ServoValueUp);
+      PrintDebug("Motor %i: adjusting down", _config.ServoPin);
+    }
+    
 };
 
 // same as built in map(), just correct.
@@ -298,6 +310,36 @@ ConstantIntervalTimer loopTimer(LENGTH_ONE_INTERVAL); // 25000 microseconds unle
 
 MatrixMotorDisplay matrix;
 
+//Button management
+int SERVO_ADJUSTMENT_UP = 2;
+int SERVO_ADJUSTMENT_DOWN = 3;
+int SERVO_ADJUSTMENT_NEXT = 4;
+int next_switch_prior_state = LOW;
+int current_adjustment_servo = 0;
+
+// Function for monitoring adjustment buttons and control their function
+void servoAdjustment(){
+  int next_switch_current_state = digitalRead(SERVO_ADJUSTMENT_NEXT); // Read next switch state
+  if (next_switch_current_state != next_switch_prior_state){ // Check if state has changed
+    next_switch_prior_state = next_switch_current_state; // Update state
+    if (next_switch_current_state == 1){ // Check if next switch is pressed
+      
+      // Cycle to next servo
+      if (current_adjustment_servo < NUM_SERVOS-1){
+        current_adjustment_servo ++;
+      } else {
+        current_adjustment_servo = 0;
+      }
+    }
+  }
+
+  if(digitalRead(SERVO_ADJUSTMENT_DOWN) == HIGH) { // Check if down button is pressed
+    servos[current_adjustment_servo].adjustServoDown(); // Adjust servo down
+  } else if(digitalRead(SERVO_ADJUSTMENT_UP) == HIGH) { // Check if up button is pressed
+    servos[current_adjustment_servo].adjustServoUp(); // Adjust servo up
+  }
+}
+
 
 void setup() {
   // WATCH OUT: The serial console should be at least 115200, or 1000000 if available
@@ -319,6 +361,11 @@ void setup() {
       Serial.println(config.Input.AnalogPin);
     }
   }
+
+  // Set button pins to input listen for input
+  pinMode(SERVO_ADJUSTMENT_UP, INPUT);
+  pinMode(SERVO_ADJUSTMENT_DOWN, INPUT);
+  pinMode(SERVO_ADJUSTMENT_NEXT, INPUT);
 
 #ifdef ENABLE_UNO_R4_LED_MATRIX == 1
   matrix.begin();
@@ -356,8 +403,9 @@ void loop() {
   }
   matrix.update();
 
-  
 #endif  
-
+  
+  // Checks switches and adjusts servos if desired
+  servoAdjustment();
   
 }
